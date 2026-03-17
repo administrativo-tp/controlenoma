@@ -105,7 +105,7 @@ tfoot td{font-weight:600;background:var(--bg2);border-top:1px solid var(--border
     <button onclick="P('ev')">Eventos</button>
     <button onclick="P('co')">Comissões</button>
     <button onclick="P('cu')">Custos</button>
-    <button onclick="P('nv')" style="margin-left:auto;background:var(--bg2)">+ Novo evento</button>
+    
   </div>
   <div id="db" class="page active"><div style="text-align:center;padding:4rem;color:var(--text3);font-size:13px">Carregando dados da planilha...</div></div>
   <div id="gr" class="page"></div>
@@ -113,7 +113,7 @@ tfoot td{font-weight:600;background:var(--bg2);border-top:1px solid var(--border
   <div id="ev" class="page"></div>
   <div id="co" class="page"></div>
   <div id="cu" class="page"></div>
-  <div id="nv" class="page"></div>
+  
 </div>
 <script>
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSn6_VrQx6JbYprPgzgeTdqx0ovuofGiek87dd-mYfcOxzwXl38W64jjUlXK4ZHjg1SG7ku0ifRhz5g/pub?gid=0&single=true&output=csv';
@@ -221,9 +221,9 @@ const SALDOS=[
   {u:'Boa Vista',a:2026,m:'Março',mn:3,dif:0.29,com:0,pago:0,saldo:24690.29},
 ];
 
-let newEvs=JSON.parse(localStorage.getItem('noma_tp_v5')||'[]');
-const allEvs=()=>[...REAL_EVENTS,...newEvs];
-const save=()=>localStorage.setItem('noma_tp_v5',JSON.stringify(newEvs));
+
+const allEvs=()=>[...REAL_EVENTS];
+
 const fmt=v=>'R$ '+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtK=v=>v>=1000?'R$'+(v/1000).toFixed(1).replace('.',',')+'k':fmt(v);
 const isDark=()=>window.matchMedia('(prefers-color-scheme:dark)').matches;
@@ -262,14 +262,14 @@ const bO=()=>({responsive:true,maintainAspectRatio:false,
   plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmtK(ctx.parsed.y??ctx.parsed)}}},
   scales:{x:{grid:{color:gc()},ticks:{color:tc(),font:{size:11}}},y:{grid:{color:gc()},ticks:{color:tc(),font:{size:11},callback:v=>fmtK(v)}}}});
 
-const PAGES=['db','gr','ac','ev','co','cu','nv'];
+const PAGES=['db','gr','ac','ev','co','cu'];
 function P(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   PAGES.forEach((p,i)=>{if(p===id)document.querySelectorAll('.nav button')[i].classList.add('active');});
   if(id==='db')rDB();if(id==='gr')rGR();if(id==='ac')rAC();
-  if(id==='ev')rEV();if(id==='co')rCO();if(id==='cu')rCU();if(id==='nv')rNV();
+  if(id==='ev')rEV();if(id==='co')rCO();if(id==='cu')rCU();
 }
 
 
@@ -575,7 +575,7 @@ function rEV(){
       <select id="fm" onchange="fEV()"><option value="">Todos os meses</option>${meses.map(m=>{const[a,mo]=m.split('-');return`<option value="${m}">${new Date(a,mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`;}).join('')}</select>
       <select id="fst" onchange="fEV()"><option value="">Todos os status</option><option value="realizado">Realizado</option><option value="a realizar">A realizar</option></select>
     </div>
-    <button class="btn" onclick="P('nv')">+ Novo evento</button>
+    
   </div><div id="evtb"></div>`;
   fEV();
 }
@@ -593,7 +593,7 @@ function fEV(){
     return true;
   }).sort((a,b)=>b.data.localeCompare(a.data));
   const tE=f.reduce((s,e)=>s+Number(e.decor_extra||0),0),tS=f.reduce((s,e)=>s+calc(e).saldo,0);
-  const isNew=id=>newEvs.some(n=>n.id===id);
+  
   document.getElementById('evtb').innerHTML=f.length===0?'<div style="text-align:center;padding:3rem;color:var(--text3)">Nenhum evento encontrado.</div>':
     `<div class="card" style="padding:0 .5rem"><div class="tw"><table>
       <thead><tr><th>Data</th><th>Noivos</th><th>Unidade</th><th>Produtor</th><th>Status</th><th>Extras</th><th>Descontos</th><th>Saldo Taís</th><th></th></tr></thead>
@@ -606,12 +606,12 @@ function fEV(){
         <td>${fmt(c.ex)}</td>
         <td style="color:var(--text3)">− ${fmt(c.comNoma+c.comProd+c.custos)}</td>
         <td class="spos">${fmt(c.saldo)}</td>
-        <td>${isNew(e.id)?`<button onclick="editEV('${e.id}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:12px;font-family:var(--font)">Editar</button>`:''}</td>
+        
       </tr>`;}).join('')}</tbody>
       <tfoot><tr><td colspan="5">${f.length} evento(s)</td><td>${fmt(tE)}</td><td></td><td class="spos">${fmt(tS)}</td><td></td></tr></tfoot>
     </table></div></div>`;
 }
-function editEV(id){P('nv');rNV(id);}
+
 
 // ── COMISSÕES ─────────────────────────────────────────────────────────────────
 function rCO(){
@@ -692,70 +692,12 @@ function rCU(){
 }
 
 // ── NOVO EVENTO ───────────────────────────────────────────────────────────────
-function rNV(editId){
-  const el=document.getElementById('nv');
-  const ev=editId?newEvs.find(e=>e.id===editId):null;
-  el.innerHTML=`<div class="card">
-    <h3>${ev?'Editar — '+ev.noivos:'Cadastrar novo evento'}</h3>
-    <div class="fg">
-      <div class="fgp"><label>Noivos / Nome do evento</label><input type="text" id="fn" value="${ev?ev.noivos:''}" placeholder="Ana e João"></div>
-      <div class="fgp"><label>Data do evento</label><input type="date" id="fd" value="${ev?ev.data:''}"></div>
-      <div class="fgp"><label>Unidade Noma</label><select id="fu2"><option value="Moema" ${!ev||ev.unidade==='Moema'?'selected':''}>Noma Moema</option><option value="Boa Vista" ${ev?.unidade==='Boa Vista'?'selected':''}>Noma Boa Vista</option></select></div>
-      <div class="fgp"><label>Produtor(a)</label><select id="fp2" onchange="cR()"><option value="">Selecione</option><option value="Cecília" ${ev?.produtor==='Cecília'?'selected':''}>Cecília (comissão 10%)</option><option value="Matheus" ${ev?.produtor==='Matheus'?'selected':''}>Matheus (comissão 5%)</option><option value="Joice" ${ev?.produtor==='Joice'?'selected':''}>Joice (comissão 5%)</option></select></div>
-      <div class="fgp"><label>Valor fechado (R$)</label><input type="number" id="fvf" value="${ev?.valor_evento||''}" placeholder="0,00"></div>
-      <div class="fgp"><label>Valor pago pelos noivos (R$)</label><input type="number" id="fvp" value="${ev?.valor_pago||''}" placeholder="0,00"></div>
-    </div>
-    <hr class="div">
-    <p style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">Decor Extra TP</p>
-    <div class="fg1"><div class="fgp"><label>Valor total dos extras vendidos (R$)</label><input type="number" id="fex" value="${ev?.decor_extra||''}" placeholder="0,00" oninput="cR()"></div></div>
-    <hr class="div">
-    <p style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">Custos repassados</p>
-    <div class="fg">
-      <div class="fgp"><label>Remontagem e outros Noma (R$)</label><input type="number" id="frem" value="${ev?.remont||''}" placeholder="0,00" oninput="cR()"></div>
-      <div class="fgp"><label>Bouquet cortesia (R$)</label><input type="number" id="fbou" value="${ev?.bouquet||''}" placeholder="0,00" oninput="cR()"></div>
-    </div>
-    <div class="fgp" style="margin-bottom:1.5rem"><label>Observações</label><input type="text" id="fobs" value="${ev?.obs||''}" placeholder="Notas sobre o evento..."></div>
-    <div id="rc" style="margin-bottom:1.5rem"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn" onclick="sEV('${editId||''}')">Salvar evento</button>
-      ${ev?`<button class="btnd" onclick="dEV('${editId}')">Excluir</button>`:''}
-      <button onclick="P('ev')" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:13px;font-family:var(--font)">Cancelar</button>
-    </div>
-  </div>`;
-  cR();
-}
 
-function cR(){
-  const ex=Number(document.getElementById('fex')?.value||0);
-  const rem=Number(document.getElementById('frem')?.value||0);
-  const bou=Number(document.getElementById('fbou')?.value||0);
-  const prod=(document.getElementById('fp2')?.value||'').toLowerCase();
-  const comN=ex*0.10,comP=prod==='cecília'||prod==='cecilia'?ex*0.10:(prod==='matheus'||prod==='joice')?ex*0.05:0;
-  const custos=rem+bou,saldo=ex-comN-comP-custos;
-  const box=document.getElementById('rc');
-  if(!box||(ex===0&&custos===0)){if(box)box.innerHTML='';return;}
-  box.innerHTML=`<div class="sbox">
-    <div class="row"><span>Decor Extra TP</span><span>${fmt(ex)}</span></div>
-    <div class="row" style="font-size:11px;color:var(--text3)"><span>→ Comissão Noma (10%)</span><span>− ${fmt(comN)}</span></div>
-    ${comP>0?`<div class="row" style="font-size:11px;color:var(--text3)"><span>→ Comissão produtor(a)</span><span>− ${fmt(comP)}</span></div>`:''}
-    ${custos>0?`<div class="row" style="font-size:11px;color:var(--text3)"><span>→ Custos repassados</span><span>− ${fmt(custos)}</span></div>`:''}
-    <div class="row tot"><span>Saldo Taís Puntel</span><span class="spos">${fmt(saldo)}</span></div>
-  </div>`;
-}
 
-function sEV(editId){
-  const noivos=document.getElementById('fn').value.trim(),data=document.getElementById('fd').value;
-  const unidade=document.getElementById('fu2').value,produtor=document.getElementById('fp2').value;
-  if(!noivos||!data){alert('Preencha pelo menos o nome e a data.');return;}
-  const d=new Date(data+'T12:00:00');
-  const ev={id:editId||Date.now().toString(),noivos,data,unidade,produtor,ano:d.getFullYear(),mes:d.getMonth()+1,
-    valor_evento:Number(document.getElementById('fvf').value||0),valor_pago:Number(document.getElementById('fvp').value||0),
-    decor_extra:Number(document.getElementById('fex').value||0),remont:Number(document.getElementById('frem').value||0),
-    bouquet:Number(document.getElementById('fbou').value||0),obs:document.getElementById('fobs').value};
-  if(editId){const i=newEvs.findIndex(e=>e.id===editId);newEvs[i]=ev;}else{newEvs.push(ev);}
-  save();alert('Evento salvo com sucesso!');P('ev');
-}
-function dEV(id){if(!confirm('Excluir este evento?')){return;}newEvs=newEvs.filter(e=>e.id!==id);save();P('ev');}
+
+
+
+
 
 loadCSV();
 </script>
