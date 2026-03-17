@@ -191,6 +191,45 @@ function P(id){
   if(id==='ev')rEV();if(id==='co')rCO();if(id==='cu')rCU();if(id==='nv')rNV();
 }
 
+
+// ── TOOLTIPS ──────────────────────────────────────────────────────────────────
+let _tt=null;
+function _mkTT(html){
+  hideTT();
+  _tt=document.createElement('div');
+  _tt.style.cssText='position:fixed;z-index:9999;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.15);pointer-events:none;min-width:220px;line-height:1.6';
+  _tt.innerHTML=html;
+  document.body.appendChild(_tt);
+}
+function _positionTT(e){
+  if(!_tt)return;
+  const x=e.clientX,y=e.clientY,tw=_tt.offsetWidth,th=_tt.offsetHeight;
+  let left=x+14,top=y-th/2;
+  if(left+tw>window.innerWidth-10)left=x-tw-14;
+  if(top<10)top=10;
+  if(top+th>window.innerHeight-10)top=window.innerHeight-th-10;
+  _tt.style.left=left+'px';_tt.style.top=top+'px';
+}
+function hideTT(){if(_tt){_tt.remove();_tt=null;}}
+
+function showTT(e,unidade,dif,com,pago,saldo){
+  const saldoPrev=saldo-(dif+com-pago);
+  _mkTT(`<div style="font-weight:600;margin-bottom:6px;color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.04em">Como este saldo foi formado</div>
+    <div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0"><span style="color:var(--text2)">Saldo anterior</span><span>${fmt(saldoPrev)}</span></div>
+    ${dif!==0?`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0"><span style="color:var(--text2)">+ Dif. a repassar p/ Taís</span><span style="color:#3B6D11">+ ${fmt(dif)}</span></div>`:''}
+    ${com!==0?`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0"><span style="color:var(--text2)">+ Comissão extras (10%)</span><span style="color:#3B6D11">+ ${fmt(com)}</span></div>`:''}
+    ${pago!==0?`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0"><span style="color:var(--text2)">− Noma pagou à Taís</span><span style="color:var(--rd)">− ${fmt(pago)}</span></div>`:''}
+    <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;gap:16px;font-weight:600"><span>Saldo acumulado</span><span class="${saldo>=0?'spos':'sneg'}">${fmt(saldo)}</span></div>`);
+  _positionTT(e);
+  document.addEventListener('mousemove',_positionTT,{once:false,passive:true});
+}
+function showTT2(e,valor,tipo){
+  const labels={dif:'Diferença entre o que os noivos pagaram e o valor do contrato atualizado. Valor positivo = noivos pagaram mais, gerando crédito para a Taís.',com:'Comissão de 10% calculada sobre os Extras TP vendidos neste mês. Deve ser repassada pela Noma à Taís.',pago:'Valor efetivamente transferido pela Noma para a conta da Taís neste período.'};
+  _mkTT(`<div style="font-weight:600;margin-bottom:6px">${fmt(valor)}</div><div style="color:var(--text2);line-height:1.5;max-width:240px">${labels[tipo]||''}</div>`);
+  _positionTT(e);
+  document.addEventListener('mousemove',_positionTT,{once:false,passive:true});
+}
+
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
 function rDB(){
   const el=document.getElementById('db'),evs=allEvs(),now=new Date();
@@ -383,22 +422,27 @@ function showACTab(id){
 }
 
 function tabelaSaldo(unidade,saldoAtual){
-  const dados=SALDOS.filter(s=>s.u===unidade);
+  const dados=SALDOS.filter(s=>s.u===unidade).slice().reverse();
   const rows=dados.map(s=>{
-    const sv=s.saldo!==null?`<span class="${s.saldo>0.5?'spos':s.saldo<-0.5?'sneg':'sdim'}">${fmt(s.saldo)}</span>`:`<span class="sdim">—</span>`;
-    const pv=s.pago!==0?fmt(s.pago):`<span class="sdim">—</span>`;
-    return`<tr><td>${s.a}</td><td>${s.m}</td><td>${s.dif>0?fmt(s.dif):'<span class="sdim">—</span>'}</td><td>${s.com>0?fmt(s.com):'<span class="sdim">—</span>'}</td><td>${pv}</td><td>${sv}</td></tr>`;
+    const sv=s.saldo!==null?`<span class="${s.saldo>0.5?'spos':s.saldo<-0.5?'sneg':'sdim'}"
+      style="cursor:default"
+      onmouseenter="showTT(event,'${unidade}',${s.dif},${s.com},${s.pago},${s.saldo??0})"
+      onmouseleave="hideTT()">${fmt(s.saldo)}</span>`:`<span class="sdim">—</span>`;
+    const dv=s.dif>0?`<span style="cursor:default" onmouseenter="showTT2(event,${s.dif},'dif')" onmouseleave="hideTT()">${fmt(s.dif)}</span>`:`<span class="sdim">—</span>`;
+    const cv=s.com>0?`<span style="cursor:default" onmouseenter="showTT2(event,${s.com},'com')" onmouseleave="hideTT()">${fmt(s.com)}</span>`:`<span class="sdim">—</span>`;
+    const pv=s.pago!==0?`<span style="cursor:default" onmouseenter="showTT2(event,${s.pago},'pago')" onmouseleave="hideTT()">${fmt(s.pago)}</span>`:`<span class="sdim">—</span>`;
+    return`<tr><td>${s.a}</td><td>${s.m}</td><td>${dv}</td><td>${cv}</td><td>${pv}</td><td>${sv}</td></tr>`;
   }).join('');
   const tD=dados.reduce((a,s)=>a+s.dif,0),tC=dados.reduce((a,s)=>a+s.com,0),tP=dados.reduce((a,s)=>a+s.pago,0);
   const st=saldoAtual>=0?'Noma deve à Taís':'Taís deve à Noma';
   const cls=saldoAtual>=0?'bpos':'bneg';
   return`<div class="card" style="padding:0 .5rem">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem .75rem .5rem;flex-wrap:wrap;gap:8px">
-      <span style="font-size:13px;font-weight:600">Noma ${unidade} — histórico de acertos</span>
+      <span style="font-size:13px;font-weight:600">Noma ${unidade} — mais recente primeiro</span>
       <span class="badge ${cls}">${st}: ${fmt(Math.abs(saldoAtual))}</span>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Ano</th><th>Mês</th><th>Dif. a repassar p/ Taís</th><th>Comissão extras (10%)</th><th>Noma pagou p/ Taís</th><th>Saldo acumulado</th></tr></thead>
+      <thead><tr><th>Ano</th><th>Mês</th><th>Dif. repassar p/ Taís</th><th>Comissão extras (10%)</th><th>Noma pagou p/ Taís</th><th>Saldo acumulado</th></tr></thead>
       <tbody>${rows}</tbody>
       <tfoot><tr><td colspan="2">Total</td><td>${fmt(tD)}</td><td>${fmt(tC)}</td><td>${fmt(tP)}</td>
         <td class="${saldoAtual>=0?'spos':'sneg'}">${fmt(saldoAtual)} <span style="font-size:10px;font-weight:400;color:var(--text3)">(saldo atual)</span></td>
@@ -406,7 +450,7 @@ function tabelaSaldo(unidade,saldoAtual){
     </table></div>
   </div>
   <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;padding:0 .25rem">
-    Saldo positivo = Noma deve à Taís &nbsp;|&nbsp; Saldo negativo = Taís deve à Noma
+    Passe o mouse sobre os valores para detalhes. Positivo = Noma deve à Taís &nbsp;|&nbsp; Negativo = Taís deve à Noma
   </div>`;
 }
 
@@ -419,22 +463,22 @@ function tabelaConsolidada(){
     if(s.u==='Moema')mapa[k].smoe=s.saldo;
     if(s.u==='Boa Vista')mapa[k].sbv=s.saldo;
   });
-  const rows=Object.values(mapa).sort((a,b)=>a.a!==b.a?a.a-b.a:a.mn-b.mn).map(r=>{
+  const rows=Object.values(mapa).sort((a,b)=>a.a!==b.a?b.a-a.a:b.mn-a.mn).map(r=>{
     const ms=r.smoe!==null?`<span class="${r.smoe>0.5?'spos':r.smoe<-0.5?'sneg':'sdim'}">${fmt(r.smoe)}</span>`:`<span class="sdim">—</span>`;
     const bs=r.sbv!==null?`<span class="${r.sbv>0.5?'spos':r.sbv<-0.5?'sneg':'sdim'}">${fmt(r.sbv)}</span>`:`<span class="sdim">—</span>`;
     const cv=(r.smoe??0)+(r.sbv??0);
-    const cs=r.smoe!==null||r.sbv!==null?`<span class="${cv>0.5?'spos':cv<-0.5?'sneg':'sdim'};font-weight:600">${fmt(cv)}</span>`:`<span class="sdim">—</span>`;
+    const cs=r.smoe!==null||r.sbv!==null?`<span class="${cv>0.5?'spos':cv<-0.5?'sneg':'sdim'}" style="font-weight:600">${fmt(cv)}</span>`:`<span class="sdim">—</span>`;
     return`<tr><td>${r.a}</td><td>${r.m}</td><td>${r.dif>0?fmt(r.dif):'—'}</td><td>${r.com>0?fmt(r.com):'—'}</td><td>${r.pago!==0?fmt(r.pago):'—'}</td><td>${ms}</td><td>${bs}</td><td>${cs}</td></tr>`;
   }).join('');
   return`<div class="card" style="padding:0 .5rem">
-    <div style="padding:1rem .75rem .5rem;font-size:13px;font-weight:600">Visão consolidada — ambas as unidades</div>
+    <div style="padding:1rem .75rem .5rem;font-size:13px;font-weight:600">Consolidado — mais recente primeiro</div>
     <div class="tw"><table>
       <thead><tr><th>Ano</th><th>Mês</th><th>Dif. repassar</th><th>Com. extras</th><th>Noma pagou</th><th>Saldo Moema</th><th>Saldo BV</th><th>Consolidado</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div>
   </div>
   <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;padding:0 .25rem">
-    Consolidado = soma dos saldos das duas unidades. Positivo = Noma deve à Taís. Negativo = Taís deve à Noma.
+    Consolidado = soma dos saldos. Positivo = Noma deve à Taís. Negativo = Taís deve à Noma.
   </div>`;
 }
 
@@ -449,6 +493,7 @@ function rEV(){
       <select id="fp" onchange="fEV()"><option value="">Todos os produtores</option><option value="Cecília">Cecília</option><option value="Matheus">Matheus</option><option value="Joice">Joice</option></select>
       <select id="fa" onchange="fEV()"><option value="">Todos os anos</option>${anos.map(a=>`<option value="${a}">${a}</option>`).join('')}</select>
       <select id="fm" onchange="fEV()"><option value="">Todos os meses</option>${meses.map(m=>{const[a,mo]=m.split('-');return`<option value="${m}">${new Date(a,mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`;}).join('')}</select>
+      <select id="fst" onchange="fEV()"><option value="">Todos os status</option><option value="realizado">Realizado</option><option value="areалizar">A realizar</option></select>
     </div>
     <button class="btn" onclick="P('nv')">+ Novo evento</button>
   </div><div id="evtb"></div>`;
@@ -456,30 +501,35 @@ function rEV(){
 }
 
 function fEV(){
-  const u=document.getElementById('fu')?.value||'',p=document.getElementById('fp')?.value,a=document.getElementById('fa')?.value||'',m=document.getElementById('fm')?.value||'';
+  const u=document.getElementById('fu')?.value||'',p=document.getElementById('fp')?.value,a=document.getElementById('fa')?.value||'',m=document.getElementById('fm')?.value||'',st=document.getElementById('fst')?.value||'';
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  function statusEv(e){const d=new Date(e.data+'T12:00:00');return d<hoje?'realizado':'areалizar';}
+  function labelStatus(e){return statusEv(e)==='realizado'?'Realizado':'A realizar';}
   let f=allEvs().filter(e=>{
     if(u&&e.unidade!==u)return false;
     if(p!==undefined&&p!==''&&e.produtor!==p)return false;
     if(a&&String(e.ano)!==a)return false;
     if(m){const mk=`${e.ano}-${String(e.mes).padStart(2,'0')}`;if(mk!==m)return false;}
+    if(st&&statusEv(e)!==st)return false;
     return true;
   }).sort((a,b)=>b.data.localeCompare(a.data));
   const tE=f.reduce((s,e)=>s+Number(e.decor_extra||0),0),tS=f.reduce((s,e)=>s+calc(e).saldo,0);
   const isNew=id=>newEvs.some(n=>n.id===id);
   document.getElementById('evtb').innerHTML=f.length===0?'<div style="text-align:center;padding:3rem;color:var(--text3)">Nenhum evento encontrado.</div>':
     `<div class="card" style="padding:0 .5rem"><div class="tw"><table>
-      <thead><tr><th>Data</th><th>Noivos</th><th>Unidade</th><th>Produtor</th><th>Extras</th><th>Descontos</th><th>Saldo Taís</th><th></th></tr></thead>
-      <tbody>${f.map(e=>{const c=calc(e);return`<tr>
+      <thead><tr><th>Data</th><th>Noivos</th><th>Unidade</th><th>Produtor</th><th>Status</th><th>Extras</th><th>Descontos</th><th>Saldo Taís</th><th></th></tr></thead>
+      <tbody>${f.map(e=>{const c=calc(e);const s=statusEv(e);return`<tr>
         <td>${new Date(e.data+'T12:00:00').toLocaleDateString('pt-BR')}</td>
         <td>${e.noivos}</td>
         <td><span class="badge ${e.unidade==='Moema'?'bm':'bbv'}">${e.unidade}</span></td>
         <td>${e.produtor||'<span style="color:var(--text3)">—</span>'}</td>
+        <td><span class="badge ${s==='realizado'?'bpos':'bneutro'}">${labelStatus(e)}</span></td>
         <td>${fmt(c.ex)}</td>
         <td style="color:var(--text3)">− ${fmt(c.comNoma+c.comProd+c.custos)}</td>
         <td class="spos">${fmt(c.saldo)}</td>
-        <td>${isNew(e.id)?`<button onclick="editEV('${e.id}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:12px;font-family:var(--font)">Editar</button>`:''}
-        </td></tr>`;}).join('')}</tbody>
-      <tfoot><tr><td colspan="4">${f.length} evento(s)</td><td>${fmt(tE)}</td><td></td><td class="spos">${fmt(tS)}</td><td></td></tr></tfoot>
+        <td>${isNew(e.id)?`<button onclick="editEV('${e.id}')" style="background:none;border:none;color:var(--blue);cursor:pointer;font-size:12px;font-family:var(--font)">Editar</button>`:''}</td>
+      </tr>`;}).join('')}</tbody>
+      <tfoot><tr><td colspan="5">${f.length} evento(s)</td><td>${fmt(tE)}</td><td></td><td class="spos">${fmt(tS)}</td><td></td></tr></tfoot>
     </table></div></div>`;
 }
 function editEV(id){P('nv');rNV(id);}
@@ -491,7 +541,7 @@ function rCO(){
   const tC=aC.filter(e=>{const p=(e.produtor||'').toLowerCase();return p==='cecília'||p==='cecilia'||p==='cissa';}).reduce((s,e)=>s+e.comProd,0);
   const tM=aC.filter(e=>(e.produtor||'').toLowerCase()==='matheus').reduce((s,e)=>s+e.comProd,0);
   const tJ=aC.filter(e=>(e.produtor||'').toLowerCase()==='joice').reduce((s,e)=>s+e.comProd,0);
-  const ms=getMeses(evs);
+  const allMeses=[...new Set(evs.map(e=>`${e.ano}-${String(e.mes).padStart(2,'0')}`))].sort().reverse();
   el.innerHTML=`
     <div class="mg">
       <div class="m"><div class="lb">Noma (10%)</div><div class="vl">${fmt(tN)}</div></div>
@@ -499,25 +549,70 @@ function rCO(){
       <div class="m"><div class="lb">Matheus (5%)</div><div class="vl">${fmt(tM)}</div></div>
       <div class="m"><div class="lb">Joice (5%)</div><div class="vl">${fmt(tJ)}</div></div>
     </div>
+    <div class="fb">
+      <select id="co-fm" onchange="fCO()">
+        <option value="">Todos os meses</option>
+        ${allMeses.map(m=>{const[a,mo]=m.split('-');return`<option value="${m}">${new Date(a,mo-1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</option>`;}).join('')}
+      </select>
+    </div>
+    <div id="co-table"></div>`;
+  fCO();
+}
+
+function fCO(){
+  const filtMes=document.getElementById('co-fm')?.value||'';
+  const evs=allEvs();
+  const ms=getMeses(evs).reverse();
+  const filtered=filtMes?ms.filter(m=>m.k===filtMes):ms;
+  const tN=filtered.reduce((s,m)=>s+m.comNoma,0);
+  const tC=filtered.reduce((s,m)=>s+m.comCec,0);
+  const tM=filtered.reduce((s,m)=>s+m.comMat,0);
+  const tJ=filtered.reduce((s,m)=>s+m.comJoi,0);
+  document.getElementById('co-table').innerHTML=`
     <div class="card" style="padding:0 .5rem">
       <div style="padding:1rem .75rem .5rem;font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">Comissões por mês</div>
       <div class="tw"><table>
         <thead><tr><th>Mês</th><th>Eventos</th><th>Noma (10%)</th><th>Cecília (10%)</th><th>Matheus (5%)</th><th>Joice (5%)</th><th>Total</th></tr></thead>
-        <tbody>${ms.map(m=>`<tr>
+        <tbody>${filtered.map(m=>`<tr>
           <td>${new Date(m.k+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</td>
           <td>${m.ev}</td><td>${fmt(m.comNoma)}</td><td>${fmt(m.comCec)}</td>
           <td>${fmt(m.comMat)}</td><td>${fmt(m.comJoi)}</td>
           <td>${fmt(m.comNoma+m.comCec+m.comMat+m.comJoi)}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><td>Total</td><td>${evs.length}</td><td>${fmt(tN)}</td><td>${fmt(tC)}</td><td>${fmt(tM)}</td><td>${fmt(tJ)}</td><td>${fmt(tN+tC+tM+tJ)}</td></tr></tfoot>
+        <tfoot><tr><td>Total</td><td>${filtered.reduce((s,m)=>s+m.ev,0)}</td><td>${fmt(tN)}</td><td>${fmt(tC)}</td><td>${fmt(tM)}</td><td>${fmt(tJ)}</td><td>${fmt(tN+tC+tM+tJ)}</td></tr></tfoot>
       </table></div>
     </div>`;
+}
+
+function fCO(){
+  const filtMes=document.getElementById('co-fm')?.value||'';
+  const evs=allEvs();
+  const ms=getMeses(evs).reverse();
+  const filtered=filtMes?ms.filter(m=>m.k===filtMes):ms;
+  const tN=filtered.reduce((s,m)=>s+m.comNoma,0);
+  const tC=filtered.reduce((s,m)=>s+m.comCec,0);
+  const tM=filtered.reduce((s,m)=>s+m.comMat,0);
+  const tJ=filtered.reduce((s,m)=>s+m.comJoi,0);
+  document.getElementById('co-table').innerHTML=`
+    <div style="padding:1rem .75rem .5rem;font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em">Comissões por mês</div>
+    <div class="tw"><table>
+      <thead><tr><th>Mês</th><th>Eventos</th><th>Noma (10%)</th><th>Cecília (10%)</th><th>Matheus (5%)</th><th>Joice (5%)</th><th>Total</th></tr></thead>
+      <tbody>${filtered.map(m=>`<tr>
+        <td>${new Date(m.k+'-01T12:00:00').toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}</td>
+        <td>${m.ev}</td><td>${fmt(m.comNoma)}</td><td>${fmt(m.comCec)}</td>
+        <td>${fmt(m.comMat)}</td><td>${fmt(m.comJoi)}</td>
+        <td>${fmt(m.comNoma+m.comCec+m.comMat+m.comJoi)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td>${filtered.reduce((s,m)=>s+m.ev,0)}</td><td>${fmt(tN)}</td><td>${fmt(tC)}</td><td>${fmt(tM)}</td><td>${fmt(tJ)}</td><td>${fmt(tN+tC+tM+tJ)}</td></tr></tfoot>
+    </table></div>`;
 }
 
 // ── CUSTOS ────────────────────────────────────────────────────────────────────
 function rCU(){
   const el=document.getElementById('cu');
-  const evs=allEvs().filter(e=>Number(e.remont||0)+Number(e.bouquet||0)>0).sort((a,b)=>b.data.localeCompare(a.data));
+  if(window._cuSort===undefined)window._cuSort='desc';
+  const raw=allEvs().filter(e=>Number(e.remont||0)+Number(e.bouquet||0)>0);
+  const evs=[...raw].sort((a,b)=>window._cuSort==='asc'?a.data.localeCompare(b.data):b.data.localeCompare(a.data));
   const tR=evs.reduce((s,e)=>s+Number(e.remont||0),0),tB=evs.reduce((s,e)=>s+Number(e.bouquet||0),0);
+  const arrow=window._cuSort==='asc'?'↑':'↓';
   el.innerHTML=`
     <div class="mg">
       <div class="m"><div class="lb">Remontagem e outros</div><div class="vl">${fmt(tR)}</div></div>
@@ -525,7 +620,10 @@ function rCU(){
       <div class="m"><div class="lb">Total repassado</div><div class="vl">${fmt(tR+tB)}</div><div class="sb">${evs.length} eventos com custos</div></div>
     </div>
     <div class="card" style="padding:0 .5rem"><div class="tw"><table>
-      <thead><tr><th>Data</th><th>Noivos</th><th>Unidade</th><th>Produtor</th><th>Remontagem</th><th>Bouquet</th><th>Total</th></tr></thead>
+      <thead><tr>
+        <th style="cursor:pointer;user-select:none" onclick="window._cuSort=window._cuSort==='asc'?'desc':'asc';rCU()">Data ${arrow}</th>
+        <th>Noivos</th><th>Unidade</th><th>Produtor</th><th>Remontagem</th><th>Bouquet</th><th>Total</th>
+      </tr></thead>
       <tbody>${evs.map(e=>`<tr>
         <td>${new Date(e.data+'T12:00:00').toLocaleDateString('pt-BR')}</td>
         <td>${e.noivos}</td>
